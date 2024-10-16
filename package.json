@@ -1,0 +1,21 @@
+{
+  "name": "stock-price-checker",
+  "version": "1.0.0",
+  "description": "A simple web app to check stock prices using Yahoo Finance API",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "connect": "^3.7.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.1",
+    "yahoo-finance2": "^2.11.3"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
