@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Stock Search</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+    }
+    small{
+        font-size: 0.7em;
+        color: #444;
+    }
+    .container {
+      width: 90%;
+      max-width: 600px;
+      margin: auto;
+      padding: 20px;
+    }
+    .search-box {
+      position: relative;
+    }
+    .autocomplete-items {
+      position: absolute;
+      background-color: #fafafa;
+      border-top: none;
+      z-index: 99;
+      top: 100%;
+      left: 0;
+      right: 0;
+      font-size: 0.9em;
+    }
+    .autocomplete-item {
+      padding: 10px;
+      cursor: pointer;
+    }
+    .autocomplete-item:hover {
+      background-color: #ddd;
+    }
+    #stockInput{
+        font-size: 1em;
+    }
+    #currentPrice{
+      font-size: x-large;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Stock Search</h2>
+    <div class="search-box">
+      <input type="text" id="stockInput" placeholder="Type a stock symbol...">
+      <div id="autocomplete-list" class="autocomplete-items"></div>
+      <button onclick="clickSearch()">Search</button>&emsp;
+      <select id="timeRangeSelect">
+        <option value="1d" selected>1d</option>
+        <option value="5d">5d</option>
+        <option value="1mo">1mo</option>
+        <option value="3mo">3mo</option>
+        <option value="6mo">6mo</option>
+        <option value="1y">1y</option>
+        <option value="2y">2y</option>
+        <option value="5y">5y</option>
+        <option value="10y">10y</option>
+        <option value="ytd">ytd</option>
+        <option value="max">max</option>
+    </select>
+    </div>
+    <hr>
+    <p id="curr">&emsp;<span id="currentPrice">-</span>&emsp;<img id="triangle" src="https://imgur.com/LLDqIvg.png" width="20px" height="20px"><span id="increasing">- (-%)</span></p>
+    <h3>Stock Information</h3>
+    <p>Name: <span id="name">-</span></p>
+    <p>Open: <span id="openPrice">-</span></p>
+    <p>High: <span id="highPrice">-</span></p>
+    <p>Low: <span id="lowPrice">-</span></p>
+    <p>Close: <span id="closePrice">-</span></p>
+    <p>Volume: <span id="tradeVolume">-</span></p>
+  </div>
+
+  <script>
+    let stockSymbol = "", openMarket = 0, closeMarket = 0, timePeriod = "1d";
+
+    // 若為盤中期間，每10秒更新一次資訊
+    const curr = setInterval(function() {
+        const now = Date.now();
+        if(stockSymbol != "" && now >= openMarket * 1000 && now <= closeMarket * 1000)
+            searchStock();
+    }, 10000);
+
+    // 若輸入框有輸入文字的話，就抓文字起來檢查使用者可能要輸入什麼
+    document.getElementById('stockInput').addEventListener('input', function() {
+      const query = this.value;
+      if (query.length > 1) {
+        fetch(`/autocomplete?query=${query}`)
+          .then(response => response.json())
+          .then(data => {
+            // 把使用者可能會輸入的東西塞到這個清單中，供使用者點選
+            const autocompleteList = document.getElementById('autocomplete-list');
+            autocompleteList.innerHTML = '';
+            if(data.length > 0){
+              // 塞清單的過程
+              data.forEach(stock => {
+                const item = document.createElement('div');
+                item.classList.add('autocomplete-item');
+                item.innerHTML = `${stock.symbol}&emsp;<small>${stock.name}</small>`;
+                item.addEventListener('click', () => {
+                  document.getElementById('stockInput').value = stock.symbol;
+                  autocompleteList.innerHTML = '';
+                });
+                autocompleteList.appendChild(item);
+              });
+            }
+          });
+      } else {
+        document.getElementById('autocomplete-list').innerHTML = '';
+      }
+    });
+
+    //如果時間區域被更換選項時，就更新記錄的變數
+    document.getElementById('timeRangeSelect').addEventListener('change', function() {
+        timePeriod = this.value;
+    });
+
+    // 抓取後端股市資料，並顯示到網頁上
+    function searchStock() {
+      fetch(`/stock?symbol=${stockSymbol}&timeperiod=${timePeriod}`)
+        .then(response => response.json())
+        .then(data => {
+          document.getElementById('triangle').src = (data.increasing == 0 ? "https://imgur.com/LLDqIvg.png" : (data.increasing > 0 ? "https://imgur.com/f4YtAHW.png" : "https://imgur.com/DrjmUmZ.png"));  // 判斷是漲還跌，顯示對應箭頭圖片
+          document.getElementById('curr').style.color = (data.increasing == 0 ? "#000" : (data.increasing > 0 ? "#EA463C" : "#4CAB69"));  // 判斷是漲還跌，選用對應顏色
+          document.getElementById('currentPrice').innerText = data.current;
+          document.getElementById('increasing').innerText = Math.abs(data.increasing) + " (" + (Math.abs(data.rate) * 100) + "%)";  // 格式化漲跌幅
+          document.getElementById('name').innerText = data.name;
+          document.getElementById('openPrice').innerText = data.open;
+          document.getElementById('highPrice').innerText = data.high;
+          document.getElementById('lowPrice').innerText = data.low;
+          document.getElementById('closePrice').innerText = data.close;
+          document.getElementById('tradeVolume').innerText = data.volume;
+          openMarket = data.start;
+          closeMarket = data.end;
+          
+          document.getElementById('autocomplete-list').innerHTML = '';  // 清空自動填入選項
+        })
+        .catch(error => console.error('Error:', error));
+    }
+
+    // 搜尋按鈕被點選時要執行的
+    function clickSearch() {
+        stockSymbol = document.getElementById('stockInput').value;
+        searchStock();
+    }
+  </script>
+</body>
+</html>
